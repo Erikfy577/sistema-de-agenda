@@ -3,7 +3,7 @@ Este projeto nasce da necessidade real de otimizar o fluxo de atendimento em Uni
 
 ✨ Destaques do Projeto
 🚀 Fila Inteligente: Gerenciamento automático de pacientes por ordem de chegada e prioridade, garantindo fluidez no atendimento.
-👨‍⚕️ Múltiplos Especialistas: Listas de espera segmentadas por profissionais (Dra. Laurice, Thiago, Jamile e Gerlando), permitindo uma visão clara da demanda de cada consultório.
+👨‍⚕️ Múltiplos Especialistas: Listas de espera segmentadas por profissionais , permitindo uma visão clara da demanda de cada consultório.
 ⚙️ Automação de Vagas: Sistema dinâmico que converte a fila de espera em agendamentos do dia com base na disponibilidade real da unidade.
 📂 Segurança de Dados: Persistência robusta via banco de dados SQLite, com caminhos dinâmicos e confirmações de exclusão para evitar erros operacionais.
 
