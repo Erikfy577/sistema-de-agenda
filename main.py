@@ -1,3 +1,5 @@
-from views.tela_principal import iniciar_sistema
+from views.tela_principal import abrir_tela_principal
 
-iniciar_sistema()
+if __name__ == "__main__":
+    # Dá a partida no sistema chamando a função correta
+    abrir_tela_principal()

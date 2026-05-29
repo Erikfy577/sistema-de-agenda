@@ -1,10 +1,11 @@
-import tkinter as tk
-from tkinter import ttk, messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from tkinter import messagebox
 from tkcalendar import Calendar
 import sqlite3
 import os
-import webbrowser  # Biblioteca nativa para abrir o navegador
-from urllib.parse import quote  # Para formatar o texto padrão URL
+import webbrowser
+from urllib.parse import quote
 
 def obter_caminho_banco():
     dir_views = os.path.dirname(os.path.abspath(__file__))
@@ -12,9 +13,14 @@ def obter_caminho_banco():
     return os.path.join(dir_raiz, "database", "banco.db")
 
 def abrir_tela_agenda(janela_principal):
-    agenda = tk.Toplevel()
-    agenda.title("Agenda Mensal")
+    agenda = ttk.Toplevel(master=janela_principal)
+    agenda.title("Agenda Mensal e Sincronização")
     agenda.state('zoomed')
+
+    # Configuração de ícone
+    caminho_icone = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icone.ico")
+    if os.path.exists(caminho_icone):
+        agenda.iconbitmap(caminho_icone)
 
     def voltar():
         agenda.destroy()
@@ -23,87 +29,121 @@ def abrir_tela_agenda(janela_principal):
 
     agenda.protocol("WM_DELETE_WINDOW", voltar)
 
-    # Botão Voltar
-    tk.Button(agenda, text="← Voltar ao Menu", command=voltar, bg="#607D8B", fg="white", font=("Arial", 10, "bold")).pack(anchor="nw", padx=20, pady=10)
+    # -------------------------------------------------------------------------
+    # BARRA SUPERIOR
+    # -------------------------------------------------------------------------
+    frame_header = ttk.Frame(agenda, bootstyle=PRIMARY, padding=15)
+    frame_header.pack(fill=X, side=TOP, anchor=N)
 
-    # Frame principal dividido em 2 colunas
-    frame_conteudo = tk.Frame(agenda)
-    frame_conteudo.pack(fill="both", expand=True, padx=20, pady=10)
+    # Título interno usando estilo INVERSE para herdar o fundo escuro automaticamente
+    label_titulo = ttk.Label(
+        frame_header, 
+        text="CENTRAL DE AGENDAMENTOS E NOTIFICAÇÃO", 
+        font=("Helvetica", 14, "bold"), 
+        bootstyle=(INVERSE, PRIMARY)
+    )
 
-    # LADO ESQUERDO: Calendário
-    frame_esquerdo = tk.Frame(frame_conteudo)
-    frame_esquerdo.pack(side="left", fill="both", expand=True, padx=10)
-
-    tk.Label(frame_esquerdo, text="Selecione o Dia da Consulta", font=("Arial", 14, "bold")).pack(pady=5)
-    calendario = Calendar(frame_esquerdo, selectmode='day', date_pattern='dd/mm/yyyy', locale='pt_BR')
-    calendario.pack(pady=10, fill="both", expand=True)
-
-    # LADO DIREITO: Pacientes do Dia Selecionado
-    frame_direito = tk.Frame(frame_conteudo)
-    frame_direito.pack(side="right", fill="both", expand=True, padx=10)
-
-    tk.Label(frame_direito, text="Pacientes Agendados no Dia", font=("Arial", 14, "bold"), fg="#4CAF50").pack(pady=5)
+    # Botão Voltar ajustado para o estilo padrão de alto contraste sobre o Dark
+    btn_voltar = ttk.Button(frame_header, text="← Menu Principal", command=voltar, bootstyle=INFO)
     
-    tabela_dia = ttk.Treeview(frame_direito, columns=("ID", "Nome", "Telefone", "Médico"), show="headings", height=12)
-    for col in ("ID", "Nome", "Telefone", "Médico"): 
-        tabela_dia.heading(col, text=col)
-    tabela_dia.column("ID", width=40)
-    tabela_dia.pack(fill="both", expand=True, pady=5)
+    # Renderização limpa em um único fluxo do pack
+    btn_voltar.pack(side=LEFT, padx=10)
+    label_titulo.pack(side=RIGHT, padx=10)
 
-    # Função para buscar os agendados no banco local
-    def atualizar_lista_do_dia(*args):
+    # -------------------------------------------------------------------------
+    # CORPO DA TELA
+    # -------------------------------------------------------------------------
+    container = ttk.Frame(agenda, padding=20)
+    container.pack(fill=BOTH, expand=YES)
+
+    # --- COLUNA ESQUERDA (Calendário) ---
+    col_esquerda = ttk.Frame(container)
+    col_esquerda.pack(side=LEFT, fill=BOTH, padx=10)
+
+    ttk.Label(col_esquerda, text="1. Selecione a Data", font=("Helvetica", 12, "bold")).pack(anchor=W, pady=5)
+    
+    calendario = Calendar(col_esquerda, selectmode='day', date_pattern='dd/mm/yyyy', locale='pt_BR',
+                         background="#2C3E50", foreground="white", selectbackground="#18BC9C")
+    calendario.pack(pady=10, fill=BOTH, expand=YES)
+
+    # --- COLUNA DIREITA (Tabela e Botões) ---
+    col_direita = ttk.Frame(container)
+    col_direita.pack(side=RIGHT, fill=BOTH, expand=YES, padx=10)
+
+    ttk.Label(col_direita, text="2. Pacientes Agendados", font=("Helvetica", 12, "bold"), bootstyle=PRIMARY).pack(anchor=W, pady=5)
+
+    # Tabela com estilo do Bootstrap
+    colunas = ("ID", "Nome", "Telefone", "Profissional")
+    tabela_dia = ttk.Treeview(col_direita, columns=colunas, show="headings", bootstyle=INFO)
+    for col in colunas:
+        tabela_dia.heading(col, text=col)
+        tabela_dia.column(col, anchor=CENTER)
+    tabela_dia.column("ID", width=50)
+    tabela_dia.pack(fill=BOTH, expand=YES, pady=5)
+
+    # --- ÁREA DE CONTROLES (Período e APIs) ---
+    frame_controles = ttk.Labelframe(col_direita, text=" 3. Configurar Envio (API) ", padding=15, bootstyle=PRIMARY)
+    frame_controles.pack(fill=X, pady=15)
+
+    ttk.Label(frame_controles, text="Período da Consulta:").grid(row=0, column=0, padx=5, sticky=W)
+    periodos = ["Manhã (07:00 às 10:00)", "Tarde (13:00 às 16:00)", "Noite (17:00 às 19:00)"]
+    combo_periodo = ttk.Combobox(frame_controles, values=periodos, state="readonly", width=30)
+    combo_periodo.grid(row=0, column=1, padx=5, sticky=W)
+    combo_periodo.set(periodos[0])
+
+    def formatar_telefone(tel):
+        return "".join(filter(str.isdigit, str(tel)))
+
+    def acao_api_whatsapp():
+        selecao = tabela_dia.selection()
+        if not selecao:
+            return messagebox.showwarning("Aviso", "Selecione um paciente na lista acima.")
+        
+        item = tabela_dia.item(selecao[0])['values']
         data_sel = calendario.get_date()
-        for item in tabela_dia.get_children(): 
-            tabela_dia.delete(item)
-            
+        periodo_sel = combo_periodo.get()
+        telefone = formatar_telefone(item[2])
+        if not telefone.startswith("55"): telefone = f"55{telefone}"
+
+        msg = (f"Olá, *{item[1]}*! 🏥\n\nConfirmamos sua consulta com o profissional *{item[3]}*.\n\n"
+               f"🗓️ *Data:* {data_sel}\n"
+               f"🕒 *Período:* {periodo_sel}\n\n"
+               f"Por favor, compareça à UBS portando Cartão SUS e documento com foto.")
+        
+        webbrowser.open(f"https://api.whatsapp.com/send?phone={telefone}&text={quote(msg)}")
+
+    def acao_api_google():
+        selecao = tabela_dia.selection()
+        if not selecao:
+            return messagebox.showwarning("Aviso", "Selecione um paciente.")
+        
+        item = tabela_dia.item(selecao[0])['values']
+        data_br = calendario.get_date()
+        dia, mes, ano = data_br.split('/')
+        data_google = f"{ano}{mes}{dia}"
+        
+        titulo = quote(f"Consulta: {item[1]} ({item[3]})")
+        detalhes = quote(f"Paciente: {item[1]}\nTelefone: {item[2]}\nProfissional: {item[3]}\nPeríodo: {combo_periodo.get()}")
+        
+        url_google = f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_google}T100000Z/{data_google}T110000Z&details={detalhes}"
+        webbrowser.open(url_google)
+
+    btn_frame = ttk.Frame(frame_controles)
+    btn_frame.grid(row=1, column=0, columnspan=2, pady=15, sticky=W)
+
+    ttk.Button(btn_frame, text="💬 Enviar WhatsApp", command=acao_api_whatsapp, bootstyle=SUCCESS, width=20).pack(side=LEFT, padx=5)
+    ttk.Button(btn_frame, text="🗓️ Sincronizar Google", command=acao_api_google, bootstyle=INFO, width=20).pack(side=LEFT, padx=5)
+
+    def atualizar_tabela(*args):
+        for item in tabela_dia.get_children(): tabela_dia.delete(item)
         try:
             conexao = sqlite3.connect(obter_caminho_banco())
             cursor = conexao.cursor()
-            
-            # Como seu sistema atual move para 'Agendado' sem salvar uma data fixa,
-            # vamos listar todos os 'Agendados' para teste. No futuro, você pode filtrar por data.
-            cursor.execute("SELECT id, nome, telefone, profissional FROM pacientes WHERE status = 'Agendado' ORDER BY id ASC")
-            
-            for linha in cursor.fetchall(): 
-                tabela_dia.insert("", "end", values=linha)
+            cursor.execute("SELECT id, nome, telefone, profissional FROM pacientes WHERE status = 'Agendado'")
+            for linha in cursor.fetchall():
+                tabela_dia.insert("", END, values=linha)
             conexao.close()
-        except Exception as e: 
-            print(e)
+        except Exception as e: print(e)
 
-    # Atualiza a lista sempre que mudar a data selecionada no calendário
-    calendario.bind("<<CalendarSelected>>", atualizar_lista_do_dia)
-
-    # INTEGRAÇÃO COM A API DO GOOGLE AGENDA (Via Requisição Web)
-    def enviar_para_google_agenda():
-        selecionado = tabela_dia.selection()
-        if not selecionado:
-            messagebox.showwarning("Aviso", "Selecione um paciente na tabela ao lado para enviar à agenda!")
-            return
-            
-        item = tabela_dia.item(selecionado[0])
-        valores = item['values']
-        
-        nome_paciente = valores[1]
-        telefone = valores[2]
-        medico = valores[3]
-        data_consulta = calendario.get_date() # Pega a data do calendário (ex: 25/05/2026)
-        
-        # Converte a data do formato BR (dd/mm/aaaa) para o formato que a API do Google exige (aaaammdd)
-        dia, mes, ano = data_consulta.split('/')
-        data_formatada = f"{ano}{mes}{dia}"
-        
-        # Monta os textos da requisição
-        titulo_evento = quote(f"Consulta UBS: {nome_paciente}")
-        detalhes = quote(f"Paciente: {nome_paciente}\nTelefone: {telefone}\nProfissional: {medico}\nAgendado pelo Sistema Desktop UBS.")
-        
-        # URL da API Web do Google Agenda (Cria um evento direto na nuvem)
-        url_api = f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={titulo_evento}&dates={data_formatada}T100000Z/{data_formatada}T103000Z&details={detalhes}&sf=true&output=xml"
-        
-        # Abre o navegador executando a chamada da API
-        webbrowser.open(url_api)
-
-    # Botão de Integração
-    tk.Button(agenda, text="🗓️ Sincronizar Paciente com Google Agenda (API)", command=enviar_para_google_agenda, bg="#4285F4", fg="white", font=("Arial", 11, "bold")).pack(pady=15)
-
-    # Carrega os dados assim que abrir a tela
-    atualizar_lista_do_dia()
+    calendario.bind("<<CalendarSelected>>", atualizar_tabela)
+    atualizar_tabela()
