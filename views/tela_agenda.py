@@ -1,11 +1,13 @@
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
+import tkinter as tk
 from tkinter import messagebox
 from tkcalendar import Calendar
 import sqlite3
 import os
 import webbrowser
 from urllib.parse import quote
+from PIL import Image, ImageTk
 
 def obter_caminho_banco():
     dir_views = os.path.dirname(os.path.abspath(__file__))
@@ -17,8 +19,10 @@ def abrir_tela_agenda(janela_principal):
     agenda.title("Agenda Mensal e Sincronização")
     agenda.state('zoomed')
 
-    # Configuração de ícone
+    # Configuração de ícone e fundo
     caminho_icone = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icone.ico")
+    caminho_fundo = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "tela_agenda.png")
+
     if os.path.exists(caminho_icone):
         agenda.iconbitmap(caminho_icone)
 
@@ -30,47 +34,76 @@ def abrir_tela_agenda(janela_principal):
     agenda.protocol("WM_DELETE_WINDOW", voltar)
 
     # -------------------------------------------------------------------------
-    # BARRA SUPERIOR
+    # BARRA SUPERIOR (Identidade e-SUS PEC)
     # -------------------------------------------------------------------------
-    frame_header = ttk.Frame(agenda, bootstyle=PRIMARY, padding=15)
+    frame_header = tk.Frame(agenda, bg="#1B365D", height=70)
     frame_header.pack(fill=X, side=TOP, anchor=N)
+    frame_header.pack_propagate(False)
 
-    # Título interno usando estilo INVERSE para herdar o fundo escuro automaticamente
-    label_titulo = ttk.Label(
+    btn_voltar = ttk.Button(frame_header, text="← Menu Principal", command=voltar, bootstyle=LIGHT)
+    btn_voltar.pack(side=LEFT, padx=20, pady=18)
+
+    label_titulo = tk.Label(
         frame_header, 
         text="CENTRAL DE AGENDAMENTOS E NOTIFICAÇÃO", 
         font=("Helvetica", 14, "bold"), 
-        bootstyle=(INVERSE, PRIMARY)
+        bg="#1B365D", 
+        fg="white"
     )
-
-    # Botão Voltar ajustado para o estilo padrão de alto contraste sobre o Dark
-    btn_voltar = ttk.Button(frame_header, text="← Menu Principal", command=voltar, bootstyle=INFO)
-    
-    # Renderização limpa em um único fluxo do pack
-    btn_voltar.pack(side=LEFT, padx=10)
-    label_titulo.pack(side=RIGHT, padx=10)
+    label_titulo.pack(side=RIGHT, padx=20, pady=18)
 
     # -------------------------------------------------------------------------
-    # CORPO DA TELA
+    # IMAGEM DE FUNDO
     # -------------------------------------------------------------------------
-    container = ttk.Frame(agenda, padding=20)
-    container.pack(fill=BOTH, expand=YES)
+    frame_fundo = tk.Frame(agenda, bg="#F8FAFC")
+    frame_fundo.pack(fill=BOTH, expand=YES)
+
+    label_imagem_fundo = None
+    imagem_original = None
+
+    if os.path.exists(caminho_fundo):
+        try:
+            imagem_original = Image.open(caminho_fundo)
+            label_imagem_fundo = tk.Label(frame_fundo)
+            label_imagem_fundo.place(x=0, y=0, relwidth=1, relheight=1)
+        except Exception as e:
+            print(f"Erro ao carregar fundo da agenda: {e}")
+
+    def redimensionar_fundo(event):
+        nonlocal imagem_original, label_imagem_fundo
+        # Trava de segurança para evitar o bug do Tkinter
+        if event.widget == agenda and imagem_original and label_imagem_fundo:
+            largura = event.width
+            altura = event.height
+            if largura > 100 and altura > 100:
+                img_redimensionada = imagem_original.resize((largura, altura), Image.Resampling.LANCZOS)
+                foto_tk = ImageTk.PhotoImage(img_redimensionada)
+                label_imagem_fundo.configure(image=foto_tk)
+                label_imagem_fundo.image = foto_tk
+
+    agenda.bind('<Configure>', redimensionar_fundo)
+
+    # -------------------------------------------------------------------------
+    # CARD CENTRAL (Painel flutuante sobre a imagem)
+    # -------------------------------------------------------------------------
+    card_agenda = tk.Frame(frame_fundo, bg="white", padx=20, pady=20)
+    card_agenda.place(relx=0.5, rely=0.53, relwidth=0.9, relheight=0.8, anchor=CENTER)
 
     # --- COLUNA ESQUERDA (Calendário) ---
-    col_esquerda = ttk.Frame(container)
-    col_esquerda.pack(side=LEFT, fill=BOTH, padx=10)
+    col_esquerda = tk.Frame(card_agenda, bg="white")
+    col_esquerda.pack(side=LEFT, fill=BOTH, padx=10, expand=False)
 
-    ttk.Label(col_esquerda, text="1. Selecione a Data", font=("Helvetica", 12, "bold")).pack(anchor=W, pady=5)
+    tk.Label(col_esquerda, text="1. Selecione a Data", font=("Helvetica", 12, "bold"), bg="white", fg="#1B365D").pack(anchor=W, pady=5)
     
     calendario = Calendar(col_esquerda, selectmode='day', date_pattern='dd/mm/yyyy', locale='pt_BR',
-                         background="#2C3E50", foreground="white", selectbackground="#18BC9C")
+                          background="#2C3E50", foreground="white", selectbackground="#18BC9C")
     calendario.pack(pady=10, fill=BOTH, expand=YES)
 
     # --- COLUNA DIREITA (Tabela e Botões) ---
-    col_direita = ttk.Frame(container)
+    col_direita = tk.Frame(card_agenda, bg="white")
     col_direita.pack(side=RIGHT, fill=BOTH, expand=YES, padx=10)
 
-    ttk.Label(col_direita, text="2. Pacientes Agendados", font=("Helvetica", 12, "bold"), bootstyle=PRIMARY).pack(anchor=W, pady=5)
+    tk.Label(col_direita, text="2. Pacientes Agendados", font=("Helvetica", 12, "bold"), bg="white", fg="#1B365D").pack(anchor=W, pady=5)
 
     # Tabela com estilo do Bootstrap
     colunas = ("ID", "Nome", "Telefone", "Profissional")

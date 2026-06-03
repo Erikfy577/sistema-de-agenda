@@ -15,7 +15,9 @@ def abrir_tela_principal():
 
     diretorio_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     caminho_icone = os.path.join(diretorio_raiz, "assets", "icone.ico")
-    caminho_fundo = os.path.join(diretorio_raiz, "assets", "fundo.png")
+    
+    # Atualizado para a nova imagem
+    caminho_fundo = os.path.join(diretorio_raiz, "assets", "tela_principal.png")
 
     if os.path.exists(caminho_icone):
         janela.iconbitmap(caminho_icone)
@@ -38,11 +40,19 @@ def abrir_tela_principal():
 
     def redimensionar_fundo(event):
         nonlocal imagem_original, label_fundo
-        if imagem_original and label_fundo:
-            img_redimensionada = imagem_original.resize((event.width, event.height), Image.Resampling.LANCZOS)
-            foto_tk = ImageTk.PhotoImage(img_redimensionada)
-            label_fundo.configure(image=foto_tk)
-            label_fundo.image = foto_tk
+        
+        # CORREÇÃO DO BUG: Garante que o redimensionamento só usa as medidas da janela principal
+        # e ignora eventos gerados por frames ou botões internos durante a abertura
+        if event.widget == janela and imagem_original and label_fundo:
+            largura = event.width
+            altura = event.height
+            
+            # Previne erros se a janela inicializar minimizada ou pequena demais
+            if largura > 100 and altura > 100:
+                img_redimensionada = imagem_original.resize((largura, altura), Image.Resampling.LANCZOS)
+                foto_tk = ImageTk.PhotoImage(img_redimensionada)
+                label_fundo.configure(image=foto_tk)
+                label_fundo.image = foto_tk
 
     janela.bind('<Configure>', redimensionar_fundo)
 
