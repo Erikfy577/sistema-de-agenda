@@ -2,21 +2,21 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import tkinter as tk
 import os
+import requests
+import threading
 from PIL import Image, ImageTk
 from views.tela_cadastro import abrir_tela_cadastro
 from views.tela_agenda import abrir_tela_agenda
 from views.tela_espera import abrir_tela_espera
 
 def abrir_tela_principal():
-    # Inicializa a janela principal com o tema Bootstrap
+
     janela = ttk.Window(themename="flatly")
     janela.title("Sistema de Agendamento UBS")
     janela.state('zoomed')
 
     diretorio_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     caminho_icone = os.path.join(diretorio_raiz, "assets", "icone.ico")
-    
-    # Atualizado para a nova imagem
     caminho_fundo = os.path.join(diretorio_raiz, "assets", "tela_principal.png")
 
     if os.path.exists(caminho_icone):
@@ -26,7 +26,7 @@ def abrir_tela_principal():
         janela.withdraw()
         funcao_abrir(janela)
 
-    # --- PLANO DE FUNDO COM PILLOW ---
+    # --- PLANO DE FUNDO ---
     label_fundo = None
     imagem_original = None
 
@@ -40,14 +40,9 @@ def abrir_tela_principal():
 
     def redimensionar_fundo(event):
         nonlocal imagem_original, label_fundo
-        
-        # CORREÇÃO DO BUG: Garante que o redimensionamento só usa as medidas da janela principal
-        # e ignora eventos gerados por frames ou botões internos durante a abertura
         if event.widget == janela and imagem_original and label_fundo:
             largura = event.width
             altura = event.height
-            
-            # Previne erros se a janela inicializar minimizada ou pequena demais
             if largura > 100 and altura > 100:
                 img_redimensionada = imagem_original.resize((largura, altura), Image.Resampling.LANCZOS)
                 foto_tk = ImageTk.PhotoImage(img_redimensionada)
@@ -55,6 +50,50 @@ def abrir_tela_principal():
                 label_fundo.image = foto_tk
 
     janela.bind('<Configure>', redimensionar_fundo)
+
+    # --- WIDGET DE CLIMA (Canto Superior Direito) ---
+    frame_clima = tk.Frame(janela, bg="#1B365D", padx=31, pady=19)
+    frame_clima.place(relx=0.98, rely=0.03, anchor=NE)
+
+    label_clima = tk.Label(frame_clima, text="⏳ Buscando clima...", font=("Helvetica", 10, "bold"), bg="#1B365D", fg="white")
+    label_clima.pack()
+
+    def buscar_clima():
+        try:
+            
+            url = "https://api.open-meteo.com/v1/forecast?latitude=-16.4419&longitude=-51.1186&current_weather=true"
+            resposta = requests.get(url, timeout=5)
+            
+            if resposta.status_code == 200:
+                dados = resposta.json()
+                temp = round(dados['current_weather']['temperature'])
+                codigo = dados['current_weather']['weathercode']
+                
+                
+                if codigo == 0:
+                    emoji, desc = "☀️", "Céu limpo"
+                elif codigo in [1, 2, 3]:
+                    emoji, desc = "⛅", "Nublado"
+                elif codigo in [45, 48]:
+                    emoji, desc = "🌫️", "Nevoeiro"
+                elif codigo in [51, 53, 55, 61, 63, 65, 80, 81, 82]:
+                    emoji, desc = "🌧️", "Chuva"
+                elif codigo in [95, 96, 99]:
+                    emoji, desc = "⛈️", "Tempestade"
+                else:
+                    emoji, desc = "☁️", "Tempo variável"
+                
+                texto_final = f"{emoji} Iporá: {temp}°C | {desc}"
+                
+                
+                janela.after(0, lambda: label_clima.config(text=texto_final))
+            else:
+                janela.after(0, lambda: label_clima.config(text="☁️ Clima indisponível no momento"))
+        except Exception:
+            janela.after(0, lambda: label_clima.config(text="☁️ Modo Offline"))
+
+   
+    threading.Thread(target=buscar_clima, daemon=True).start()
 
     # --- CARD CENTRAL GIGANTE ---
     card_central = ttk.Frame(janela, padding=60, bootstyle=LIGHT)
@@ -67,11 +106,9 @@ def abrir_tela_principal():
         bootstyle=PRIMARY
     ).pack(pady=(0, 40))
 
-    # Configuração correta de estilo para fontes no ttkbootstrap
     estilo = ttk.Style()
     estilo.configure('Grande.TButton', font=('Helvetica', 13, 'bold'))
 
-    # --- BOTÕES USANDO O ESTILO DA FASE BETA ---
     ttk.Button(
         card_central, text="➕ Cadastrar Paciente", bootstyle=SUCCESS, width=35,
         style='Grande.TButton', command=lambda: abrir_e_esconder(abrir_tela_cadastro)

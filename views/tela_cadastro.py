@@ -105,7 +105,7 @@ def abrir_tela_cadastro(janela_principal):
         try:
             conexao = sqlite3.connect(obter_caminho_banco())
             cursor = conexao.cursor()
-            # Inserção agora envia a prioridade para o banco
+            
             cursor.execute(
                 "INSERT INTO pacientes (nome, telefone, profissional, status, prioridade) VALUES (?, ?, ?, 'Aguardando', ?)", 
                 (nome, telefone, profissional, prioridade)
