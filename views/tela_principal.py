@@ -83,7 +83,7 @@ def abrir_tela_principal():
                 else:
                     emoji, desc = "☁️", "Tempo variável"
                 
-                texto_final = f"{emoji} Iporá: {temp}°C | {desc}"
+                texto_final = f"{emoji} Arenópolis: {temp}°C | {desc}"
                 
                 
                 janela.after(0, lambda: label_clima.config(text=texto_final))

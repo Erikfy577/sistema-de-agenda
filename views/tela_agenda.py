@@ -1,3 +1,4 @@
+import sys
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import tkinter as tk
@@ -9,10 +10,33 @@ import webbrowser
 from urllib.parse import quote
 from PIL import Image, ImageTk
 
+# ==================================================
+# CAMINHOS COMPATÍVEIS COM PYTHON E EXE
+# ==================================================
+
+def caminho_base():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+
+    return os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    )
+
+def caminho_recurso(pasta, arquivo):
+    caminho = os.path.join(
+        caminho_base(),
+        pasta,
+        arquivo
+    )
+    return caminho
+
 def obter_caminho_banco():
-    dir_views = os.path.dirname(os.path.abspath(__file__))
-    dir_raiz = os.path.dirname(dir_views)
-    return os.path.join(dir_raiz, "database", "banco.db")
+    return caminho_recurso(
+        "database",
+        "banco.db"
+    )
+
+# ==================================================
 
 def abrir_tela_agenda(janela_principal):
     agenda = ttk.Toplevel(master=janela_principal)
@@ -71,7 +95,10 @@ def abrir_tela_agenda(janela_principal):
     col_esquerda.pack(side=LEFT, fill=BOTH, padx=10, expand=False)
 
     tk.Label(col_esquerda, text="1. Filtrar Profissional", font=("Helvetica", 12, "bold"), bg="white", fg="#1B365D").pack(anchor=W, pady=5)
-    profissionais = ["Dra. Jamile", "Dra. Laurice", "Dr. Gerlando"]
+    
+    # *** LISTA DE PROFISSIONAIS ATUALIZADA AQUI ***
+    profissionais = ["Dra. Jamile", "Dra. Laurice", "Dr. Gerlando", "Jadson"]
+    
     combo_filtro = ttk.Combobox(col_esquerda, values=profissionais, state="readonly", font=("Helvetica", 12))
     combo_filtro.pack(fill=X, pady=(0, 20))
     combo_filtro.set(profissionais[0])
@@ -115,7 +142,30 @@ def abrir_tela_agenda(janela_principal):
         tel = "".join(filter(str.isdigit, str(item[2])))
         if not tel.startswith("55"): tel = f"55{tel}"
         
-        msg = f"Olá, *{item[1]}*! 🏥\n\nConfirmamos sua consulta com *{combo_filtro.get()}*.\n\n🗓️ *Data:* {calendario.get_date()}\n🕒 *Período:* {combo_periodo.get()}\n\nCompareça portando Cartão SUS e documento."
+        periodo = combo_periodo.get()
+        if periodo == "Manhã":
+            horario = "das 07:00 às 10:00"
+        elif periodo == "Tarde":
+            horario = "das 13:00 às 16:00"
+        else:
+            horario = "das 17:00 às 19:30"
+        
+        msg = f"""Aviso Importante para você *{item[1]}*
+
+Dando continuidade ao cuidado com a saúde, estamos entrando em contato para agendar com *{combo_filtro.get()}*
+
+📅 *Data:* {calendario.get_date()}
+🌤️ *Período:* {periodo}
+🕛 *Horário:* {horario}
+📍 *Local:* Unidade Básica de Saúde Maria Divina Monteiro 
+
+Podemos agendar a consulta?
+
+Caso não possa comparecer nesta data, pedimos que entre em contato para reagendar:
+📞 (64) 98131-1988
+
+Contamos com a sua presença! Cuidar da saúde hoje é um passo importante para o seu bem-estar. 💛"""
+
         webbrowser.open(f"https://api.whatsapp.com/send?phone={tel}&text={quote(msg)}")
 
     def acao_api_google():
@@ -132,7 +182,6 @@ def abrir_tela_agenda(janela_principal):
         titulo = quote(f"Consulta: {item[1]} ({profissional})")
         detalhes = quote(f"Paciente: {item[1]}\nTelefone: {item[2]}\nProfissional: {profissional}\nPeríodo: {combo_periodo.get()}")
         
-        
         hora_inicio = "080000"
         hora_fim = "090000"
         if combo_periodo.get() == "Tarde":
@@ -141,7 +190,6 @@ def abrir_tela_agenda(janela_principal):
         elif combo_periodo.get() == "Noite":
             hora_inicio = "170000"
             hora_fim = "180000"
-        
         
         url_google = f"https://calendar.google.com/calendar/render?action=TEMPLATE&text={titulo}&dates={data_google}T{hora_inicio}/{data_google}T{hora_fim}&details={detalhes}"
         webbrowser.open(url_google)
@@ -160,7 +208,6 @@ def abrir_tela_agenda(janela_principal):
             conexao = sqlite3.connect(obter_caminho_banco())
             cursor = conexao.cursor()
             
-            
             query = """
                 SELECT id, nome, telefone, prioridade FROM pacientes 
                 WHERE status = 'Agendado' AND profissional = ? AND data_consulta = ?
@@ -174,7 +221,6 @@ def abrir_tela_agenda(janela_principal):
         except Exception as e: 
             print(f"Erro ao atualizar tabela: {e}")
 
-    
     calendario.bind("<<CalendarSelected>>", atualizar_tabela)
     combo_filtro.bind("<<ComboboxSelected>>", atualizar_tabela)
     atualizar_tabela()

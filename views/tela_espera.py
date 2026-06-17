@@ -1,3 +1,4 @@
+import sys 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import tkinter as tk
@@ -7,10 +8,33 @@ import sqlite3
 import os
 from PIL import Image, ImageTk
 
+# ==================================================
+# CAMINHOS COMPATÍVEIS COM PYTHON E EXE
+# ==================================================
+
+def caminho_base():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+
+    return os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))
+    )
+
+def caminho_recurso(pasta, arquivo):
+    caminho = os.path.join(
+        caminho_base(),
+        pasta,
+        arquivo
+    )
+    return caminho
+
 def obter_caminho_banco():
-    dir_views = os.path.dirname(os.path.abspath(__file__))
-    dir_raiz = os.path.dirname(dir_views)
-    return os.path.join(dir_raiz, "database", "banco.db")
+    return caminho_recurso(
+        "database",
+        "banco.db"
+    )
+
+# ==================================================
 
 def abrir_tela_espera(janela_principal):
     espera = ttk.Toplevel(master=janela_principal)
@@ -62,7 +86,7 @@ def abrir_tela_espera(janela_principal):
     card_espera = tk.Frame(frame_fundo, bg="white", padx=20, pady=20)
     card_espera.place(relx=0.5, rely=0.53, relwidth=0.9, relheight=0.88, anchor=CENTER)
 
-    # CRIANDO E EMPACOTANDO OS CONTAINERS NA ORDEM CORRETA (Isso resolve o bug visual)
+    
     frame_topo = tk.Frame(card_espera, bg="white")
     frame_topo.pack(side=TOP, fill=X, pady=(0, 15))
 
@@ -76,9 +100,12 @@ def abrir_tela_espera(janela_principal):
     # 1. PREENCHENDO O TOPO (Filtro e Calendário)
     # -------------------------------------------------------------------------
     tk.Label(frame_topo, text="Profissional:", font=("Helvetica", 12, "bold"), bg="white", fg="#555").pack(side=LEFT, padx=5)
-    combo_filtro = ttk.Combobox(frame_topo, values=["Dra. Jamile", "Dra. Laurice", "Dr. Gerlando"], state="readonly", font=("Helvetica", 12), width=20)
+    
+    
+    profissionais = ["Dra. Jamile", "Dra. Laurice", "Dr. Gerlando", "Jadson"]
+    combo_filtro = ttk.Combobox(frame_topo, values=profissionais, state="readonly", font=("Helvetica", 12), width=20)
     combo_filtro.pack(side=LEFT, padx=10)
-    combo_filtro.set("Dra. Jamile")
+    combo_filtro.set(profissionais[0])
 
     tk.Label(frame_topo, text="Data do Agendamento:", font=("Helvetica", 12, "bold"), bg="white", fg="#555").pack(side=LEFT, padx=(30, 5))
     calendario = Calendar(frame_topo, selectmode='day', date_pattern='dd/mm/yyyy', locale='pt_BR')
@@ -105,7 +132,7 @@ def abrir_tela_espera(janela_principal):
     tabela_agenda.grid(row=1, column=1, padx=10, sticky="nsew")
     frame_tabelas.rowconfigure(1, weight=1)
 
-    # CAIXINHAS
+    
     def alternar_caixinha(event, tabela):
         if tabela.identify("region", event.x, event.y) == "cell" and tabela.identify_column(event.x) == '#1':
             item = tabela.focus()
@@ -117,7 +144,7 @@ def abrir_tela_espera(janela_principal):
     tabela_espera.bind('<ButtonRelease-1>', lambda e: alternar_caixinha(e, tabela_espera))
     tabela_agenda.bind('<ButtonRelease-1>', lambda e: alternar_caixinha(e, tabela_agenda))
 
-    # LÓGICA DE DADOS
+   
     def carregar_listas(*args):
         medico, data_sel = combo_filtro.get(), calendario.get_date()
         for item in tabela_espera.get_children(): tabela_espera.delete(item)

@@ -4,20 +4,36 @@ import tkinter as tk
 from tkinter import messagebox
 import sqlite3
 import os
+import sys
+import requests 
 from PIL import Image, ImageTk
 
+# ==================================================
+# CAMINHOS COMPATÍVEIS COM PYTHON E EXE
+# ==================================================
+
+def caminho_base():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def caminho_recurso(pasta, arquivo):
+    return os.path.join(caminho_base(), pasta, arquivo)
+
 def obter_caminho_banco():
-    dir_views = os.path.dirname(os.path.abspath(__file__))
-    dir_raiz = os.path.dirname(dir_views)
-    return os.path.join(dir_raiz, "database", "banco.db")
+    return caminho_recurso("database", "banco.db")
+
+# ==================================================
+# TELA DE CADASTRO
+# ==================================================
 
 def abrir_tela_cadastro(janela_principal):
     cadastro = ttk.Toplevel(master=janela_principal)
     cadastro.title("Cadastro de Paciente - Fila de Espera")
-    cadastro.state('zoomed')
+    cadastro.state("zoomed")
 
-    caminho_icone = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icone.ico")
-    caminho_fundo = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "tela_cadastro.png")
+    caminho_icone = caminho_recurso("assets", "icone.ico")
+    caminho_fundo = caminho_recurso("assets", "tela_cadastro.png")
 
     if os.path.exists(caminho_icone):
         cadastro.iconbitmap(caminho_icone)
@@ -25,105 +41,127 @@ def abrir_tela_cadastro(janela_principal):
     def voltar():
         cadastro.destroy()
         janela_principal.deiconify()
-        janela_principal.state('zoomed')
+        janela_principal.state("zoomed")
 
     cadastro.protocol("WM_DELETE_WINDOW", voltar)
 
+    # ==================================================
+    # CABEÇALHO
+    # ==================================================
+
     frame_header = tk.Frame(cadastro, bg="#1B365D", height=70)
-    frame_header.pack(fill=X, side=TOP, anchor=N)
+    frame_header.pack(fill=X, side=TOP)
     frame_header.pack_propagate(False)
 
-    btn_voltar = ttk.Button(frame_header, text="← Menu Principal", command=voltar, bootstyle=LIGHT)
-    btn_voltar.pack(side=LEFT, padx=20, pady=18)
+    ttk.Button(frame_header, text="← Menu Principal", command=voltar, bootstyle=LIGHT).pack(side=LEFT, padx=20, pady=18)
+    
+    tk.Label(frame_header, text="NOVO CADASTRO DE PACIENTE", font=("Helvetica", 14, "bold"), bg="#1B365D", fg="white").pack(side=RIGHT, padx=20)
 
-    tk.Label(frame_header, text="NOVO CADASTRO DE PACIENTE", font=("Helvetica", 14, "bold"), bg="#1B365D", fg="white").pack(side=RIGHT, padx=20, pady=18)
+    # ==================================================
+    # FUNDO
+    # ==================================================
 
     frame_fundo = tk.Frame(cadastro, bg="#F8FAFC")
-    frame_fundo.pack(fill=BOTH, expand=YES)
+    frame_fundo.pack(fill=BOTH, expand=True)
 
-    label_imagem_fundo = None
     imagem_original = None
+    label_imagem = None
 
     if os.path.exists(caminho_fundo):
         try:
             imagem_original = Image.open(caminho_fundo)
-            label_imagem_fundo = tk.Label(frame_fundo)
-            label_imagem_fundo.place(x=0, y=0, relwidth=1, relheight=1)
-        except Exception as e:
-            print(f"Erro ao carregar fundo: {e}")
+            label_imagem = tk.Label(frame_fundo)
+            label_imagem.place(x=0, y=0, relwidth=1, relheight=1)
+        except Exception as erro:
+            print("Erro imagem:", erro)
 
-    def redimensionar_fundo(event):
-        nonlocal imagem_original, label_imagem_fundo
-        if imagem_original and label_imagem_fundo:
-            img_redimensionada = imagem_original.resize((event.width, event.height), Image.Resampling.LANCZOS)
-            foto_tk = ImageTk.PhotoImage(img_redimensionada)
-            label_imagem_fundo.configure(image=foto_tk)
-            label_imagem_fundo.image = foto_tk
+    def redimensionar(event):
+        nonlocal imagem_original, label_imagem
+        if imagem_original and label_imagem:
+            imagem = imagem_original.resize((event.width, event.height), Image.Resampling.LANCZOS)
+            foto = ImageTk.PhotoImage(imagem)
+            label_imagem.configure(image=foto)
+            label_imagem.image = foto
 
-    frame_fundo.bind('<Configure>', redimensionar_fundo)
+    frame_fundo.bind("<Configure>", redimensionar)
 
-    COR_FALSO_VIDRO = "#EBF4F6" 
+    # ==================================================
+    # CARD
+    # ==================================================
 
-    card_cadastro = tk.Frame(frame_fundo, bg=COR_FALSO_VIDRO)
-    card_cadastro.place(relx=0.74, rely=0.55, anchor=CENTER)
+    COR = "#EBF4F6"
+    card = tk.Frame(frame_fundo, bg=COR)
+    card.place(relx=0.74, rely=0.55, anchor=CENTER)
 
-    tk.Label(card_cadastro, text="Informações do Paciente", font=("Helvetica", 18, "bold"), bg=COR_FALSO_VIDRO, fg="#1B365D").pack(pady=(0, 15), anchor=W)
+    tk.Label(card, text="Informações do Paciente", font=("Helvetica", 18, "bold"), bg=COR, fg="#1B365D").pack(pady=15)
 
-    # NOME
-    tk.Label(card_cadastro, text="Nome Completo:", font=("Helvetica", 11, "bold"), bg=COR_FALSO_VIDRO, fg="#555").pack(anchor=W, pady=2)
-    entrada_nome = ttk.Entry(card_cadastro, width=38, font=("Helvetica", 11))
-    entrada_nome.pack(pady=(0, 15), ipady=5)
+    tk.Label(card, text="Nome Completo:", bg=COR).pack(anchor=W)
+    entrada_nome = ttk.Entry(card, width=38)
+    entrada_nome.pack(pady=10)
 
-    # TELEFONE
-    tk.Label(card_cadastro, text="Telefone / WhatsApp:", font=("Helvetica", 11, "bold"), bg=COR_FALSO_VIDRO, fg="#555").pack(anchor=W, pady=2)
-    entrada_telefone = ttk.Entry(card_cadastro, width=38, font=("Helvetica", 11))
-    entrada_telefone.pack(pady=(0, 15), ipady=5)
+    tk.Label(card, text="Telefone / WhatsApp:", bg=COR).pack(anchor=W)
+    entrada_telefone = ttk.Entry(card, width=38)
+    entrada_telefone.pack(pady=10)
 
-    # MÉDICOS ATUALIZADOS
-    tk.Label(card_cadastro, text="Profissional / Médico(a):", font=("Helvetica", 11, "bold"), bg=COR_FALSO_VIDRO, fg="#555").pack(anchor=W, pady=2)
-    profissionais = ["Dra. Jamile", "Dra. Laurice", "Dr. Gerlando"]
-    combo_medico = ttk.Combobox(card_cadastro, values=profissionais, state="readonly", width=36, font=("Helvetica", 11))
-    combo_medico.pack(pady=(0, 15))
+    tk.Label(card, text="Profissional:", bg=COR).pack(anchor=W)
+    
+    profissionais = ["Dra. Jamile", "Dra. Laurice", "Dr. Gerlando", "Jadson"]
+    combo_medico = ttk.Combobox(card, values=profissionais, state="readonly", width=36)
+    combo_medico.pack(pady=10)
     combo_medico.set(profissionais[0])
 
-    # NOVO CAMPO: PRIORIDADE
-    tk.Label(card_cadastro, text="Prioridade Clínica:", font=("Helvetica", 11, "bold"), bg=COR_FALSO_VIDRO, fg="#555").pack(anchor=W, pady=2)
-    prioridades = ["Eletivo", "Prioritário", "Urgente"]
-    combo_prioridade = ttk.Combobox(card_cadastro, values=prioridades, state="readonly", width=36, font=("Helvetica", 11))
-    combo_prioridade.pack(pady=(0, 25))
+    tk.Label(card, text="Prioridade:", bg=COR).pack(anchor=W)
+    combo_prioridade = ttk.Combobox(card, values=["Eletivo", "Prioritário", "Urgente"], state="readonly", width=36)
+    combo_prioridade.pack(pady=10)
     combo_prioridade.set("Eletivo")
+
+    # ==================================================
+    # SALVAR
+    # ==================================================
 
     def salvar():
         nome = entrada_nome.get().strip()
         telefone = entrada_telefone.get().strip()
-        profissional = combo_medico.get()
+        medico = combo_medico.get()
         prioridade = combo_prioridade.get()
 
         if not nome or not telefone:
-            return messagebox.showwarning("Aviso", "Por favor, preencha todos os campos antes de salvar.")
+            messagebox.showwarning("Aviso", "Preencha todos os campos")
+            return
 
         try:
-            conexao = sqlite3.connect(obter_caminho_banco())
+            banco = obter_caminho_banco()
+            conexao = sqlite3.connect(banco)
             cursor = conexao.cursor()
             
-            cursor.execute(
-                "INSERT INTO pacientes (nome, telefone, profissional, status, prioridade) VALUES (?, ?, ?, 'Aguardando', ?)", 
-                (nome, telefone, profissional, prioridade)
-            )
+            cursor.execute("""
+                INSERT INTO pacientes (nome, telefone, profissional, status, prioridade)
+                VALUES (?, ?, ?, 'Aguardando', ?)
+            """, (nome, telefone, medico, prioridade))
+
             conexao.commit()
             conexao.close()
+
+            # --- INTEGRAÇÃO MAKE ---
+            url_do_webhook = "https://hook.us2.make.com/v90f1fet2o1i2hwsk2arkvxssl8zucy8"
+            dados_paciente = {
+                "nome": nome,
+                "telefone": telefone,
+                "profissional": medico,
+                "prioridade": prioridade,
+                "status": "Aguardando"
+            }
             
-            messagebox.showinfo("Sucesso", f"Paciente {nome} cadastrado como {prioridade}!")
+            try:
+                requests.post(url_do_webhook, json=dados_paciente, timeout=3)
+            except:
+                pass 
+
+            messagebox.showinfo("Sucesso", "Paciente cadastrado!")
             entrada_nome.delete(0, tk.END)
             entrada_telefone.delete(0, tk.END)
-            combo_prioridade.set("Eletivo") # Reseta a prioridade
-            entrada_nome.focus()
-            
-        except Exception as e: 
-            messagebox.showerror("Erro no Banco", f"Não foi possível salvar: {e}")
 
-    estilo_cadastro = ttk.Style()
-    estilo_cadastro.configure('BotaoSalvar.TButton', font=('Helvetica', 12, 'bold'))
+        except Exception as erro:
+            messagebox.showerror("Erro no Banco", str(erro))
 
-    btn_salvar = ttk.Button(card_cadastro, text="📥 Salvar na Fila de Espera", bootstyle=DARK, width=32, style='BotaoSalvar.TButton', command=salvar)
-    btn_salvar.pack(pady=10)
+    ttk.Button(card, text="Salvar na Fila", bootstyle=SUCCESS, command=salvar).pack(pady=20)
