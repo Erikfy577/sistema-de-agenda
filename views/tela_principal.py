@@ -1,3 +1,4 @@
+import sys
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import tkinter as tk
@@ -9,15 +10,29 @@ from views.tela_cadastro import abrir_tela_cadastro
 from views.tela_agenda import abrir_tela_agenda
 from views.tela_espera import abrir_tela_espera
 
-def abrir_tela_principal():
+# ==================================================
+# CAMINHOS COMPATÍVEIS COM PYTHON E EXE
+# ==================================================
+def caminho_base():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+def caminho_recurso(pasta, arquivo):
+    return os.path.join(caminho_base(), pasta, arquivo)
+
+# ==================================================
+
+def abrir_tela_principal():
     janela = ttk.Window(themename="flatly")
     janela.title("Sistema de Agendamento UBS")
     janela.state('zoomed')
 
-    diretorio_raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    caminho_icone = os.path.join(diretorio_raiz, "assets", "icone.ico")
-    caminho_fundo = os.path.join(diretorio_raiz, "assets", "tela_principal.png")
+    # CORREÇÃO DOS CAMINHOS AQUI 👇
+    caminho_icone = caminho_recurso("assets", "icone.ico")
+    
+    # ATENÇÃO: Confirme se o nome do seu arquivo de imagem é "tela_principal.png" mesmo
+    caminho_fundo = caminho_recurso("assets", "tela_principal.png") 
 
     if os.path.exists(caminho_icone):
         janela.iconbitmap(caminho_icone)
@@ -60,7 +75,6 @@ def abrir_tela_principal():
 
     def buscar_clima():
         try:
-            
             url = "https://api.open-meteo.com/v1/forecast?latitude=-16.4419&longitude=-51.1186&current_weather=true"
             resposta = requests.get(url, timeout=5)
             
@@ -68,7 +82,6 @@ def abrir_tela_principal():
                 dados = resposta.json()
                 temp = round(dados['current_weather']['temperature'])
                 codigo = dados['current_weather']['weathercode']
-                
                 
                 if codigo == 0:
                     emoji, desc = "☀️", "Céu limpo"
@@ -85,14 +98,12 @@ def abrir_tela_principal():
                 
                 texto_final = f"{emoji} Arenópolis: {temp}°C | {desc}"
                 
-                
                 janela.after(0, lambda: label_clima.config(text=texto_final))
             else:
                 janela.after(0, lambda: label_clima.config(text="☁️ Clima indisponível no momento"))
         except Exception:
             janela.after(0, lambda: label_clima.config(text="☁️ Modo Offline"))
 
-   
     threading.Thread(target=buscar_clima, daemon=True).start()
 
     # --- CARD CENTRAL GIGANTE ---

@@ -41,8 +41,9 @@ def abrir_tela_espera(janela_principal):
     espera.title("Gerenciamento de Fila e Vagas")
     espera.state('zoomed')
 
-    caminho_icone = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icone.ico")
-    caminho_fundo = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "tela_espera.png")
+    # CORREÇÃO FEITA AQUI 👇
+    caminho_icone = caminho_recurso("assets", "icone.ico")
+    caminho_fundo = caminho_recurso("assets", "tela_espera.png")
 
     if os.path.exists(caminho_icone): espera.iconbitmap(caminho_icone)
 
@@ -81,26 +82,24 @@ def abrir_tela_espera(janela_principal):
     frame_fundo.bind('<Configure>', redimensionar_fundo)
 
     # -------------------------------------------------------------------------
-    # CARD CENTRAL (Aumentado para 0.88 para evitar cortes)
+    # CARD CENTRAL 
     # -------------------------------------------------------------------------
     card_espera = tk.Frame(frame_fundo, bg="white", padx=20, pady=20)
     card_espera.place(relx=0.5, rely=0.53, relwidth=0.9, relheight=0.88, anchor=CENTER)
 
-    
     frame_topo = tk.Frame(card_espera, bg="white")
     frame_topo.pack(side=TOP, fill=X, pady=(0, 15))
 
     frame_inferior = tk.Frame(card_espera, bg="white")
-    frame_inferior.pack(side=BOTTOM, fill=X, pady=(10, 0)) # Garante o espaço dos botões no fundo
+    frame_inferior.pack(side=BOTTOM, fill=X, pady=(10, 0)) 
 
     frame_tabelas = tk.Frame(card_espera, bg="white")
-    frame_tabelas.pack(side=TOP, fill=BOTH, expand=YES) # Ocupa apenas o espaço que sobrou no meio
+    frame_tabelas.pack(side=TOP, fill=BOTH, expand=YES) 
 
     # -------------------------------------------------------------------------
     # 1. PREENCHENDO O TOPO (Filtro e Calendário)
     # -------------------------------------------------------------------------
     tk.Label(frame_topo, text="Profissional:", font=("Helvetica", 12, "bold"), bg="white", fg="#555").pack(side=LEFT, padx=5)
-    
     
     profissionais = ["Dra. Jamile", "Dra. Laurice", "Dr. Gerlando", "Jadson"]
     combo_filtro = ttk.Combobox(frame_topo, values=profissionais, state="readonly", font=("Helvetica", 12), width=20)
@@ -116,23 +115,28 @@ def abrir_tela_espera(janela_principal):
     # -------------------------------------------------------------------------
     frame_tabelas.columnconfigure(0, weight=1)
     frame_tabelas.columnconfigure(1, weight=1)
-
-    colunas = ("Sel", "ID", "Nome", "Telefone", "Prioridade")
+    
+    colunas = ("Sel", "ID", "Nome", "Telefone", "Prioridade", "Retorno")
 
     tk.Label(frame_tabelas, text="Fila de Espera (Aguardando Data)", font=("Helvetica", 12, "bold"), bg="white", fg="#E67E22").grid(row=0, column=0, pady=5)
     tabela_espera = ttk.Treeview(frame_tabelas, columns=colunas, show="headings", bootstyle=WARNING)
     for col in colunas: tabela_espera.heading(col, text=col)
-    tabela_espera.column("Sel", width=40, anchor=CENTER); tabela_espera.column("ID", width=50, anchor=CENTER)
+    
+    tabela_espera.column("Sel", width=40, anchor=CENTER)
+    tabela_espera.column("ID", width=50, anchor=CENTER)
+    tabela_espera.column("Retorno", width=80, anchor=CENTER) 
     tabela_espera.grid(row=1, column=0, padx=10, sticky="nsew")
 
     tk.Label(frame_tabelas, text="Lista do Dia (Agendados)", font=("Helvetica", 12, "bold"), bg="white", fg="#27AE60").grid(row=0, column=1, pady=5)
     tabela_agenda = ttk.Treeview(frame_tabelas, columns=colunas, show="headings", bootstyle=SUCCESS)
     for col in colunas: tabela_agenda.heading(col, text=col)
-    tabela_agenda.column("Sel", width=40, anchor=CENTER); tabela_agenda.column("ID", width=50, anchor=CENTER)
+    
+    tabela_agenda.column("Sel", width=40, anchor=CENTER)
+    tabela_agenda.column("ID", width=50, anchor=CENTER)
+    tabela_agenda.column("Retorno", width=80, anchor=CENTER) 
     tabela_agenda.grid(row=1, column=1, padx=10, sticky="nsew")
     frame_tabelas.rowconfigure(1, weight=1)
 
-    
     def alternar_caixinha(event, tabela):
         if tabela.identify("region", event.x, event.y) == "cell" and tabela.identify_column(event.x) == '#1':
             item = tabela.focus()
@@ -144,7 +148,6 @@ def abrir_tela_espera(janela_principal):
     tabela_espera.bind('<ButtonRelease-1>', lambda e: alternar_caixinha(e, tabela_espera))
     tabela_agenda.bind('<ButtonRelease-1>', lambda e: alternar_caixinha(e, tabela_agenda))
 
-   
     def carregar_listas(*args):
         medico, data_sel = combo_filtro.get(), calendario.get_date()
         for item in tabela_espera.get_children(): tabela_espera.delete(item)
@@ -153,18 +156,27 @@ def abrir_tela_espera(janela_principal):
         try:
             conexao = sqlite3.connect(obter_caminho_banco())
             cursor = conexao.cursor()
+            
             query_base = """
-                SELECT id, nome, telefone, prioridade FROM pacientes WHERE profissional = ? AND status = ? {data_filtro}
+                SELECT id, nome, telefone, prioridade, atendimento_tipo FROM pacientes WHERE profissional = ? AND status = ? {data_filtro}
                 ORDER BY CASE prioridade WHEN 'Urgente' THEN 1 WHEN 'Prioritário' THEN 2 ELSE 3 END, id ASC
             """
             
             cursor.execute(query_base.format(data_filtro=""), (medico, 'Aguardando'))
-            for linha in cursor.fetchall(): tabela_espera.insert("", END, values=('☐',) + linha)
+            for linha in cursor.fetchall():
+                simbolo_retorno = "✅" if linha[4] == "Retorno" else ""
+                valores_formatados = ('☐', linha[0], linha[1], linha[2], linha[3], simbolo_retorno)
+                tabela_espera.insert("", END, values=valores_formatados)
                 
             cursor.execute(query_base.format(data_filtro="AND data_consulta = ?"), (medico, 'Agendado', data_sel))
-            for linha in cursor.fetchall(): tabela_agenda.insert("", END, values=('☐',) + linha)
+            for linha in cursor.fetchall():
+                simbolo_retorno = "✅" if linha[4] == "Retorno" else ""
+                valores_formatados = ('☐', linha[0], linha[1], linha[2], linha[3], simbolo_retorno)
+                tabela_agenda.insert("", END, values=valores_formatados)
+                
             conexao.close()
-        except Exception as e: print(f"Erro: {e}")
+        except Exception as e: 
+            print(f"Erro: {e}")
 
     combo_filtro.bind("<<ComboboxSelected>>", carregar_listas)
     calendario.bind("<<CalendarSelected>>", carregar_listas)
@@ -179,7 +191,8 @@ def abrir_tela_espera(janela_principal):
             conexao.commit()
             conexao.close()
             carregar_listas()
-        except Exception as e: messagebox.showerror("Erro", f"Falha: {e}")
+        except Exception as e: 
+            messagebox.showerror("Erro", f"Falha: {e}")
 
     def acao_mover_para_agenda():
         itens = [item for item in tabela_espera.get_children() if tabela_espera.item(item)['values'][0] == '☑']
@@ -200,10 +213,11 @@ def abrir_tela_espera(janela_principal):
                 conexao = sqlite3.connect(obter_caminho_banco())
                 conexao.cursor().execute(f"DELETE FROM pacientes WHERE id IN ({','.join('?'*len(marcados))})", marcados)
                 conexao.commit(); conexao.close(); carregar_listas()
-            except Exception as e: messagebox.showerror("Erro", f"Erro: {e}")
+            except Exception as e: 
+                messagebox.showerror("Erro", f"Erro: {e}")
 
     # -------------------------------------------------------------------------
-    # 3. PREENCHENDO O INFERIOR (Botões corrigidos e com mais respiro)
+    # 3. PREENCHENDO O INFERIOR 
     # -------------------------------------------------------------------------
     ttk.Button(frame_inferior, text="Mover para Agenda ➔", bootstyle=SUCCESS, command=acao_mover_para_agenda).pack(side=LEFT, padx=5, ipady=3)
     ttk.Button(frame_inferior, text="⬅ Voltar para Fila", bootstyle=WARNING, command=acao_voltar_para_espera).pack(side=LEFT, padx=5, ipady=3)

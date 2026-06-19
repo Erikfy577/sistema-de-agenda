@@ -43,8 +43,9 @@ def abrir_tela_agenda(janela_principal):
     agenda.title("Agenda Mensal e Sincronização")
     agenda.state('zoomed')
 
-    caminho_icone = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icone.ico")
-    caminho_fundo = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "tela_agenda.png")
+    # CORREÇÃO FEITA AQUI 👇
+    caminho_icone = caminho_recurso("assets", "icone.ico")
+    caminho_fundo = caminho_recurso("assets", "tela_agenda.png")
 
     if os.path.exists(caminho_icone): agenda.iconbitmap(caminho_icone)
 
@@ -96,7 +97,6 @@ def abrir_tela_agenda(janela_principal):
 
     tk.Label(col_esquerda, text="1. Filtrar Profissional", font=("Helvetica", 12, "bold"), bg="white", fg="#1B365D").pack(anchor=W, pady=5)
     
-    # *** LISTA DE PROFISSIONAIS ATUALIZADA AQUI ***
     profissionais = ["Dra. Jamile", "Dra. Laurice", "Dr. Gerlando", "Jadson"]
     
     combo_filtro = ttk.Combobox(col_esquerda, values=profissionais, state="readonly", font=("Helvetica", 12))
@@ -114,12 +114,16 @@ def abrir_tela_agenda(janela_principal):
     col_direita.pack(side=RIGHT, fill=BOTH, expand=YES, padx=10)
 
     tk.Label(col_direita, text="3. Pacientes Agendados", font=("Helvetica", 12, "bold"), bg="white", fg="#1B365D").pack(anchor=W, pady=5)
-    colunas = ("ID", "Nome", "Telefone", "Prioridade")
+    
+    # NOVA COLUNA "Retorno" ADICIONADA AQUI
+    colunas = ("ID", "Nome", "Telefone", "Prioridade", "Retorno")
     tabela_dia = ttk.Treeview(col_direita, columns=colunas, show="headings", bootstyle=INFO)
     for col in colunas: 
         tabela_dia.heading(col, text=col)
         tabela_dia.column(col, anchor=CENTER)
+    
     tabela_dia.column("ID", width=50)
+    tabela_dia.column("Retorno", width=80) 
     tabela_dia.pack(fill=BOTH, expand=YES, pady=5)
 
     # -------------------------------------------------------------------------
@@ -209,13 +213,16 @@ Contamos com a sua presença! Cuidar da saúde hoje é um passo importante para 
             cursor = conexao.cursor()
             
             query = """
-                SELECT id, nome, telefone, prioridade FROM pacientes 
+                SELECT id, nome, telefone, prioridade, atendimento_tipo FROM pacientes 
                 WHERE status = 'Agendado' AND profissional = ? AND data_consulta = ?
                 ORDER BY CASE prioridade WHEN 'Urgente' THEN 1 WHEN 'Prioritário' THEN 2 ELSE 3 END, id ASC
             """
             cursor.execute(query, (combo_filtro.get(), calendario.get_date()))
+            
             for linha in cursor.fetchall(): 
-                tabela_dia.insert("", END, values=linha)
+                simbolo_retorno = "✅" if linha[4] == "Retorno" else ""
+                valores_formatados = (linha[0], linha[1], linha[2], linha[3], simbolo_retorno)
+                tabela_dia.insert("", END, values=valores_formatados)
             
             conexao.close()
         except Exception as e: 

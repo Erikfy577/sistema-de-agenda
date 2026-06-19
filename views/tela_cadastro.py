@@ -115,6 +115,11 @@ def abrir_tela_cadastro(janela_principal):
     combo_prioridade.pack(pady=10)
     combo_prioridade.set("Eletivo")
 
+    tk.Label(card, text="Tipo de Atendimento:", bg=COR).pack(anchor=W)
+    combo_atendimento = ttk.Combobox(card, values=["Primeira Vez", "Retorno"], state="readonly", width=36)
+    combo_atendimento.pack(pady=10)
+    combo_atendimento.set("Primeira Vez")
+
     # ==================================================
     # SALVAR
     # ==================================================
@@ -124,6 +129,7 @@ def abrir_tela_cadastro(janela_principal):
         telefone = entrada_telefone.get().strip()
         medico = combo_medico.get()
         prioridade = combo_prioridade.get()
+        atendimento = combo_atendimento.get()
 
         if not nome or not telefone:
             messagebox.showwarning("Aviso", "Preencha todos os campos")
@@ -135,9 +141,9 @@ def abrir_tela_cadastro(janela_principal):
             cursor = conexao.cursor()
             
             cursor.execute("""
-                INSERT INTO pacientes (nome, telefone, profissional, status, prioridade)
-                VALUES (?, ?, ?, 'Aguardando', ?)
-            """, (nome, telefone, medico, prioridade))
+                INSERT INTO pacientes (nome, telefone, profissional, status, prioridade, atendimento_tipo)
+                VALUES (?, ?, ?, 'Aguardando', ?, ?)
+            """, (nome, telefone, medico, prioridade, atendimento))
 
             conexao.commit()
             conexao.close()
@@ -149,6 +155,7 @@ def abrir_tela_cadastro(janela_principal):
                 "telefone": telefone,
                 "profissional": medico,
                 "prioridade": prioridade,
+                "atendimento_tipo": atendimento,
                 "status": "Aguardando"
             }
             
